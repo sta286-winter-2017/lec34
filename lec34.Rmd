@@ -1,0 +1,213 @@
+---
+title: "STA286 Lecture 34 Probably a Waste of Time to Have Prepared"
+author: "Neil Montgomery"
+date: "Last edited: `r format(Sys.time(), '%Y-%m-%d %H:%M')`"
+output: 
+  beamer_presentation:
+    keep_tex: TRUE
+    incremental: TRUE
+#    df_print: tibble
+    fig_caption: FALSE
+classoption: aspectratio=169
+header-includes:
+- \renewcommand{\le}{\leqslant}
+- \renewcommand{\ge}{\geqslant}
+- \renewcommand\P[1]{P{\left(#1\right)}}
+- \newcommand\F[1]{F_{\tiny{#1}}}
+- \newcommand\f[1]{f_{\tiny{#1}}}
+- \newcommand\p[1]{p_{\tiny{#1}}}
+- \newcommand\M[1]{M_{\tiny{#1}}}
+- \newcommand\V[1]{\text{Var}\!\left(#1\right)}
+- \newcommand\E[1]{E\!\left(#1\right)}
+- \newcommand\N[1]{N_{\tiny{#1}}}
+- \newcommand\ol{\overline}
+- \newcommand\ve{\varepsilon}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE,
+                      dev = 'pdf', fig.width=5, fig.asp=0.6, fig.align = 'center')
+options(tibble.width=70, tibble.print_max=5, show.signif.stars = FALSE,
+        xtable.include.rownames=FALSE, xtable.comment=FALSE)
+library(tidyverse)
+library(xtable)
+```
+
+## some data
+
+There's a "classic" dataset with the weights of the bodies (kg) and brains (g) of 62 animals. 
+
+Here's a glance at the data:
+
+```{r, results='asis'}
+bw <- read_csv("brain.csv")
+print(xtable(bw))
+```
+
+## main results
+
+$$\hat\beta_0 = \ol{y} - \hat\beta_1\ol{x} \qquad \hat\beta_1 = \frac{S_{xy}}{S_{xx}} \qquad MSE = \frac{\sum\limits_{i=1}^n (y_i - \hat y_i)^2}{n-2} $$
+
+$$\frac{\hat\beta_1 - \beta_1}{\sqrt{MSE/S_{xx}}} \sim t_{n-2}$$
+
+The "canonical" regression hypothesis test is $H_0:\beta_1 = 0$ versus $H_1:\beta_1\ne 0$.
+
+## `R` regression output
+
+```{r}
+source("multiplot.R")
+bw_fit <- bw %>% lm(log(Brain) ~ log(Body), data=.) 
+summary(bw_fit) %>% short_print_lm
+b0 <- bw_fit$coefficients[1]
+b1 <- bw_fit$coefficients[2]
+options(digits=3)
+library(broom)
+bw_tidy <- tidy(bw_fit)
+```
+
+\pause So the fitted line is: $y = `r b0` + `r b1` x$
+
+\pause The standard deviation of $\hat\beta_1$ is $\sqrt{MSE/S_{xx}} = `r bw_tidy$std.error[2]`$
+
+\pause The p-value for the canonical hypothesis test is $`r bw_tidy$p.value[2]`$.
+
+\pause Also on the output is $\sqrt{MSE}$ itself: $`r glance(bw_fit)$sigma`$
+
+# the rest of the information depends on a "sum of squares" result
+
+## consider the $y$ values - why are they different?
+
+```{r}
+bw %>% 
+  mutate(x0=0) %>% 
+  ggplot(aes(x=log(Body), y=log(Brain))) + geom_point(alpha=0.2) + geom_point(aes(x=x0,y=log(Brain)))
+```
+
+## consider the $y$ values - different only because of the line (no noise)
+
+```{r}
+bw %>% 
+  mutate(x0=0) %>% 
+  ggplot(aes(x=log(Body), y=log(Brain))) + 
+  geom_point(alpha=0.1) +
+  geom_point(aes(x=x0,y=log(Brain))) + 
+  geom_point(aes(x=log(Body), y=predict.lm(bw_fit)), color="blue", alpha=0.5)
+```
+
+## consider the $y$ values - different only because of the noise (no line)
+
+```{r}
+bw %>% 
+  mutate(x0=0, Nonsense = sample(log(bw$Body))) %>% 
+  ggplot(aes(x=log(Body), y=log(Brain))) + geom_point(alpha=0.1) + geom_point(aes(x=x0,y=log(Brain))) + geom_point(aes(x=Nonsense, y=log(Brain)), colour="red", alpha=0.7)
+```
+
+## consider the $y$ values - different because of line, and noise
+
+```{r}
+bw %>% 
+  mutate(x0=0) %>% 
+  ggplot(aes(x=log(Body), y=log(Brain))) + geom_point(alpha=0.4) + geom_point(aes(x=x0,y=log(Brain)))
+```
+
+## towards an "index" of strength of fit
+
+We would usually measure the model-free variation of $y$ by, say, its sample variance:
+$$s^2_y = \frac{\sum\limits_{i=1}^n \left(y_i - \ol{y}\right)^2}{n-1}$$
+
+\pause Consider the numerator only. We can split it into three pieces:
+
+\begin{align*}
+\sum\limits_{i=1}^n \left(y_i - \ol{y}\right)^2 &= \sum\limits_{i=1}^n \left(y_i - \hat y_i + \hat y_i - \ol{y}\right)^2\\
+&= \sum\limits_{i=1}^n \left(\hat y_i - \ol{y}\right)^2 + \sum\limits_{i=1}^n \left(y_i - \hat{y_i}\right)^2 + 2\sum\limits_{i=1}^n \left(\hat y_i - \ol{y}\right)\left(y_i - \hat{y_i}\right)
+\end{align*}
+
+## the last term is always 0
+
+The sum of the residuals $y_i - \hat y_i$ is always 0.
+
+\begin{align*}
+\sum\limits_{i=1}^n \left(\hat y_i - \ol{y}\right)\left(y_i - \hat{y_i}\right) &= \sum\limits_{i=1}^n \left(\hat\beta_0 + \hat\beta_1x_i - \ol{y}\right)\left(y_i - \hat{y_i}\right)\\
+&= \left(\hat\beta_0 - \ol{y}\right)\underbrace{\sum\limits_{i=1}^n \left(y_i - \hat{y_i}\right)}_{\text{always 0}} + \hat\beta_1\underbrace{\sum\limits_{i=1}^nx_i\left(y_i-(\hat\beta_0 +\hat\beta_1 x_i)\right)}_{\text{Solution of $\frac{\partial \ell}{\partial \beta_1}=0$}} \\
+&= 0
+\end{align*}
+
+Note: this was a nice slide.
+
+## the sum of squares decomposition
+
+$$\begin{array}{ccccc}
+\sum\limits_{i=1}^n \left(y_i - \ol{y}\right)^2 & = & \sum\limits_{i=1}^n \left(\hat y_i - \ol{y}\right)^2 & + & \sum\limits_{i=1}^n \left(y_i - \hat{y_i}\right)^2\\
+\text{Total} &=& \text{Regression} &+& \text{Error}\\
+SST & = & SSR & + & SSE
+\end{array}$$
+
+## the sum of squares decomposition - graphically
+
+
+```{r}
+bw %>% 
+  mutate(x0=0, y_bar=mean(log(Brain)), fits = predict.lm(bw_fit)) %>% 
+  ggplot(aes(x=log(Body), y=log(Brain))) + geom_smooth(method = "lm", se=FALSE) + 
+  geom_point(alpha=0.4) + 
+  geom_point(aes(x=x0,y=log(Brain))) +
+  geom_segment(aes(x=log(Body), y=fits, xend=log(Body), yend=y_bar), colour="green", alpha=0.4, lwd=2) + 
+  
+  geom_segment(aes(x=log(Body), y=fits, xend=log(Body), yend=log(Brain)), colour="red", alpha=0.4, lwd=2) +
+  geom_hline(yintercept = mean(log(bw$Brain)))
+```
+
+## an "index" of strength of fit
+
+The first thing we can do with the SS decomposition is divide through by $SST$:
+
+$$1 = \frac{SSR}{SST} + \frac{SSE}{SST}$$
+
+We define $R^2 = \frac{SSR}{SST}$. It is "the proportion of variation explained by the regression".
+
+It is bounded between 0 and 1, where 1 is a perfect fit and 0 is no relationship at all.*
+
+*Only linear relationships under consideration.
+
+## the regression $F$ test
+
+The other thing we can do with the SS decomposition is to ponder the distributions of the three parts:
+
+$$\begin{array}{ccccc}
+\sum\limits_{i=1}^n \left(y_i - \ol{y}\right)^2 & = & \sum\limits_{i=1}^n \left(\hat y_i - \ol{y}\right)^2 & + & \sum\limits_{i=1}^n \left(y_i - \hat{y_i}\right)^2\\
+\text{Total} &=& \text{Regression} &+& \text{Error}\\
+SST & = & SSR & + & SSE\\
+\onslide<2->{\chi^2_{n-1} &=& \chi^2_{1} &+& \chi^2_{n-2}}
+\end{array}$$
+
+\pause Another way to test $H_0: \beta_1=0$ is by using an $F$ distribution, which is the ratio of $\chi^2$ distrubutions. In this case:
+$$\frac{SSR/1}{SSE/(n-2)} \sim F_{1,n-2}$$
+
+In the case of simple regression, this is equivalent to the $t$ distribution version of the test. 
+
+## the output again
+
+```{r}
+short_print_lm(summary(bw_fit))
+```
+
+
+
+## how to screw up a regression analysis
+
+Regression modeling is only valid if there is actually a linear relationship between input and output, and if the variance is constant.
+
+You should check this by looking at a plot of residuals versus fitted values.
+
+\pause The most common bad idea done by engineers, lawyers, doctors, and various hucksters and wannabes goes by the odd term "ecological fallacy". 
+
+This is what happens when you have more than one $y$ value at each $x$ value, and you do the following reasonable-sounding thing:
+1. at each $x$ value, calculation the average of the $y$ values.
+2. fit the regression with the average $y$ values versus the $x$ values.
+
+## log-log body/brain residuals versus fitted values
+
+```{r}
+augment(bw_fit) %>% 
+  ggplot(aes(x=.fitted, y=.resid)) + geom_point()
+```
