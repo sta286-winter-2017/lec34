@@ -1,5 +1,5 @@
 ---
-title: "STA286 Lecture 34 Probably a Waste of Time to Have Prepared"
+title: "STA286 Lecture 34 NOT COVERED ON EXAM"
 author: "Neil Montgomery"
 date: "Last edited: `r format(Sys.time(), '%Y-%m-%d %H:%M')`"
 output: 
@@ -142,7 +142,7 @@ $$\begin{array}{ccccc}
 SST & = & SSR & + & SSE
 \end{array}$$
 
-## the sum of squares decomposition - graphically
+## the sum of squares decomposition - graphic
 
 
 ```{r}
